@@ -9,8 +9,10 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.v1.auth import router as auth_router
 from app.api.v1.health import router as health_router
+from app.api.v1.patients import router as patients_router
 from app.api.v1.protected import router as protected_router
 from app.api.v1.ready import router as ready_router
+from app.api.v1.telemetry import router as telemetry_router
 from app.core.config import settings
 from app.core.database import Base, check_db_connectivity, engine
 from app.core.errors import register_error_handlers
@@ -109,6 +111,8 @@ def create_app() -> FastAPI:
     app.include_router(health_router, prefix=api_v1_prefix)
     app.include_router(ready_router, prefix=api_v1_prefix)
     app.include_router(auth_router, prefix=api_v1_prefix)
+    app.include_router(patients_router, prefix=api_v1_prefix)
+    app.include_router(telemetry_router, prefix=api_v1_prefix)
     app.include_router(protected_router, prefix=api_v1_prefix)
 
     return app
