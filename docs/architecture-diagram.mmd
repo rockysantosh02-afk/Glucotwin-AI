@@ -1,0 +1,90 @@
+graph TB
+    subgraph ClientLayer ["Client & Visualization Layer"]
+        UI["Web Dashboard (React + Vite)"]
+        AGP["Ambulatory Glucose Profile (AGP) Viewer"]
+        WIC["What-If Scenario Simulator UI"]
+        GuardNotice["Clinical Research Disclaimer & Refusal Banner"]
+    end
+
+    subgraph GatewayLayer ["API Gateway & Security Layer"]
+        CORS["CORS & Origin Validation"]
+        AuthMid["JWT Auth Middleware & RBAC"]
+        RateLim["Rate Limiter & Request Sanitizer"]
+        Envelope["Standardized Response & Error Envelope"]
+    end
+
+    subgraph ServiceLayer ["Backend Service & Processing Layer (FastAPI)"]
+        subgraph Ingestion ["Ingestion & Preprocessing"]
+            DataVal["Input Validator (Pydantic v2)"]
+            AbstainCheck["Freshness & Gap Checker (Abstention Engine)"]
+            FeatEng["Feature Engineering & State Preparation"]
+        end
+
+        subgraph CoreEngines ["Metabolic & Simulation Engines"]
+            MetricsSvc["Glycemic Metrics Engine (TIR, TAR, TBR, GMI, CV)"]
+            ODEEngine["Bergman Minimal Model ODE Simulator"]
+            ARXEngine["ARX & Kalman State Estimator (15-60m Forecast)"]
+            WhatIfEngine["Counterfactual Scenario Perturbation Engine"]
+        end
+
+        subgraph GuardrailLayer ["Safety & Guardrail Enforcement"]
+            RefusalFilter["Clinical Treatment & Dosing Refusal Blocker"]
+            AuditSvc["Append-Only Audit & Compliance Logger"]
+        end
+    end
+
+    subgraph DataSegregationBarrier ["Strict 4-Tier Data Segregation Boundary"]
+        ObservedData["Observed Data: Synthetic CGM, Meals, Activity"]
+        DerivedData["Derived Data: TIR/TAR/TBR, Variability, GMI"]
+        PredictedData["Predicted Data: 15-60m Trajectory & Uncertainty"]
+        HypotheticalData["Hypothetical Data: What-If Perturbations"]
+    end
+
+    subgraph StorageLayer ["Persistence Layer"]
+        ORM["SQLAlchemy 2.0 Async ORM"]
+        PostgresDB[("PostgreSQL 16 (Production/Docker)")]
+        SQLiteDB[("SQLite + aiosqlite (Local Dev/Test Fallback)")]
+    end
+
+    %% Client to Gateway
+    UI --> CORS
+    CORS --> AuthMid
+    AuthMid --> RateLim
+    RateLim --> DataVal
+
+    %% Ingestion flow
+    DataVal --> AbstainCheck
+    AbstainCheck -->|Data Stale / Large Gap| Envelope
+    AbstainCheck -->|Valid Signal| FeatEng
+
+    %% Feature engine to Core Engines
+    FeatEng --> MetricsSvc
+    FeatEng --> ARXEngine
+    FeatEng --> ODEEngine
+    ODEEngine --> WhatIfEngine
+
+    %% Engines to Data Segregation
+    FeatEng -.-> ObservedData
+    MetricsSvc -.-> DerivedData
+    ARXEngine -.-> PredictedData
+    WhatIfEngine -.-> HypotheticalData
+
+    %% Segregated data to Guardrails
+    ObservedData --> RefusalFilter
+    DerivedData --> RefusalFilter
+    PredictedData --> RefusalFilter
+    HypotheticalData --> RefusalFilter
+
+    %% Guardrail actions
+    RefusalFilter -->|Dosing or Treatment Advice Detected| RefusalFilter
+    RefusalFilter --> AuditSvc
+    RefusalFilter --> Envelope
+    Envelope --> UI
+
+    %% Storage flow
+    DataVal --> ORM
+    AuditSvc --> ORM
+    MetricsSvc --> ORM
+    WhatIfEngine --> ORM
+    ORM -.-> PostgresDB
+    ORM -.-> SQLiteDB
