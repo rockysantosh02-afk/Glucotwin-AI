@@ -1,6 +1,6 @@
 # GlucoTwin AI - Phase Status Tracking
 
-**Current Phase:** Phase 8 - What-If Counterfactual Simulator & Safety Guardrails  
+**Current Phase:** Phase 5 (Master Prompt) - Synthetic Patient Data Generator & Telemetry Ingestion  
 **Status:** Completed  
 **Last Updated:** October 20, 2026  
 
@@ -14,11 +14,60 @@
 | **Phase 2** | **Architecture and Contracts** | **Completed** | **2026-10-20** | **Yes (4/4)** |
 | **Phase 3 & 4** | **Backend Foundation & Security Core** | **Completed** | **2026-10-20** | **Yes (4/4)** |
 | **Phase 5** | **Synthetic Patient Data Generator & Telemetry Ingestion** | **Completed** | **2026-10-20** | **Yes (5/5)** |
-| **Phase 6** | **Glycemic Metrics & Ambulatory Glucose Profile Engine** | **Completed** | **2026-10-20** | **Yes (5/5)** |
-| **Phase 7** | **Digital Twin Physiological ODE & ARX-Kalman Engine** | **Completed** | **2026-10-20** | **Yes (5/5)** |
-| **Phase 8** | **What-If Counterfactual Simulator & Safety Guardrails** | **Completed** | **2026-10-20** | **Yes (5/5)** |
-| **Phase 9** | Frontend Web Dashboard & Interactive AGP Visualizer | Not Started | — | — |
-| **Phase 10** | End-to-End Integration, Security Audit & QA Verification | Not Started | — | — |
+| **Phase 6** | Digital Twin Computational State Engine | Pending Approval | — | — |
+| **Phase 7** | ML Engine & Reproducible Evaluation | Pending Approval | — | — |
+| **Phase 8** | API Integration | Pending Approval | — | — |
+| **Phase 9** | Frontend Implementation | Pending Approval | — | — |
+| **Phase 10** | What-If Simulation, Exports & Remaining Features | Pending Approval | — | — |
+| **Phase 11** | Full Verification & Repair | Pending Approval | — | — |
+
+---
+
+## 2. Phase 5 Implementation Summary (Synthetic Data & Telemetry Ingestion)
+
+- **Deterministic CLI Generator (`scripts/generate_demo_data.py`):**
+  - Standalone executable CLI supporting `--num-patients`, `--days`, `--seed`, `--output-dir`, and `--no-artifacts`.
+  - Generates 60–120 synthetic patients (default: 80) with 14–28 days (default: 14) of five-minute continuous glucose readings (322,139 readings generated).
+  - Physiological modeling:
+    - Autocorrelated noise via AR(1) / Ornstein-Uhlenbeck formulation ($\phi = 0.88$, $\sigma \in [2.5, 4.0]$ mg/dL) preventing unrealistic white-noise flicker.
+    - Circadian effects: Dawn phenomenon (early morning hepatic glucose elevation 04:00–08:30) and nocturnal depth.
+    - Sleep architecture: Sleep window (23:00–07:00) with reduced metabolic clearance and basal stabilization.
+    - Delayed meal absorption kinetics: Biexponential/gamma kernel peaking at ~45 minutes.
+    - Synthetic insulin bolus action: Biexponential absorption peaking at ~60 minutes.
+    - Exercise bouts: Acute glucose consumption during physical activity and extended recovery sensitivity.
+- **Learnable Latent Traits & Normalized Synthetic EHR Records:**
+  - `SyntheticEHRRecord`: Captures patient code, name alias, age, sex, weight, height, BMI, diabetes type, diagnosis years, baseline HbA1c, therapy modality (Pump vs MDI), sensor model, ISF, ICR, and basal rates.
+  - Latent relationships:
+    - Baseline HbA1c correlates with age, BMI, and diagnosis years.
+    - Higher HbA1c produces elevated fasting setpoint ($108 + (HbA1c - 6.5) \times 13.0$ mg/dL), reduced ISF, and increased glycemic variability.
+    - MDI therapy exhibits higher variance than continuous subcutaneous pump therapy.
+- **Controllable Sensor Artifact Injection:**
+  - `inject_sensor_artifacts()`:
+    1. Sensor Gaps: Missing readings for 15 to 60 minutes (warm-up, compression, or dropout).
+    2. Stale / Frozen Readings: Identical glucose values repeated across consecutive timestamps.
+    3. Duplicates: Consecutive duplicate timestamps.
+    4. Out-of-order Timestamps: Packets displaced or arriving disordered.
+    5. Sensor Calibration Drift: Gradual $+1.2$ mg/dL/hr drift over 12 hours.
+    6. Unusual Spikes: Isolated 1-step non-physiological $+42$ mg/dL noise artifacts.
+- **All Seven Canonical Demo Scenarios:**
+  1. `scenario_1_baseline_stable`: Well-controlled T1D (high TIR >75%, low CV <32%, prompt boluses).
+  2. `scenario_2_postprandial_spike`: 92g carbohydrate meal with 50% underdosed bolus surging >210 mg/dL.
+  3. `scenario_3_nocturnal_hypoglycemia`: Overnight downward plunge dropping below 70 mg/dL and reaching <54 mg/dL.
+  4. `scenario_4_exercise_induced_hypo`: 75 min uncompensated afternoon workout plunging to 56 mg/dL.
+  5. `scenario_5_compression_low`: Sudden overnight drop to ~48 mg/dL followed by immediate rebound to baseline.
+  6. `scenario_6_sensor_drift_and_dropout`: Upward drift of +30 mg/dL followed by 2-hour CALIBRATING gap.
+  7. `scenario_7_missed_bolus_hyperglycemia`: Unannounced 88g carb meal with zero bolus, sustained >250 mg/dL.
+- **Provenance Metadata & Validated CSV Exporters:**
+  - `data/demo_dataset/provenance.json`: Records generator version, seed, timestamp, parameter dictionary, patient count, observation count, and explicit clinical safety disclaimer.
+  - CSV Adapter exports: `ehr_records.csv`, `patients.csv`, `telemetry.csv` (21.1 MB), `scenarios.csv`.
+  - `.gitignore` configured to ensure all datasets, CSVs, and `data/` remain strictly out of Git.
+- **Observations Ingestion API (`POST /api/v1/observations/ingest`):**
+  - Accepts both granular `observations` items (multi-channel) and `readings` batches.
+  - Rigorous unit conversion between `mg/dL` and `mmol/L` ($1 \text{ mmol/L} = 18.0182 \text{ mg/dL}$).
+  - Bounded batch size (1 to 5000 items) and strict request validation.
+  - Concurrency-safe deduplication: Unique constraint `uq_patient_timestamp` strictly prevents duplicates. Bulk insert with item-by-item salvage on collision guarantees no valid records are lost under race conditions.
+  - Audit logging: Events logged as `OBSERVATIONS_INGESTED` with patient code and counts; clinical observation payloads and raw glucose numbers are strictly redacted.
+
 
 ---
 

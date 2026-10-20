@@ -11,6 +11,7 @@ from app.api.v1.auth import router as auth_router
 from app.api.v1.forecast import router as forecast_router
 from app.api.v1.health import router as health_router
 from app.api.v1.metrics import router as metrics_router
+from app.api.v1.observations import router as observations_router
 from app.api.v1.patients import router as patients_router
 from app.api.v1.protected import router as protected_router
 from app.api.v1.ready import router as ready_router
@@ -115,6 +116,7 @@ def create_app() -> FastAPI:
     app.include_router(ready_router, prefix=api_v1_prefix)
     app.include_router(auth_router, prefix=api_v1_prefix)
     app.include_router(patients_router, prefix=api_v1_prefix)
+    app.include_router(observations_router, prefix=api_v1_prefix)
     app.include_router(telemetry_router, prefix=api_v1_prefix)
     app.include_router(metrics_router, prefix=api_v1_prefix)
     app.include_router(forecast_router, prefix=api_v1_prefix)

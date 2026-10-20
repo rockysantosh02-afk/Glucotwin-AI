@@ -37,8 +37,12 @@ class AuditService:
         # Strip clinical telemetry payload arrays if inadvertently passed
         if "readings" in safe_details:
             safe_details["readings"] = f"[{len(safe_details['readings'])} readings omitted from audit]"
+        if "observations" in safe_details:
+            safe_details["observations"] = f"[{len(safe_details['observations'])} observations omitted from audit]"
         if "glucose_values" in safe_details:
             safe_details["glucose_values"] = "[omitted from audit]"
+        if "telemetry" in safe_details:
+            safe_details["telemetry"] = "[omitted from audit]"
 
         details_str = json.dumps(safe_details, default=str)
 

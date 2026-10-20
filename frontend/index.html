@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>GlucoTwin AI - Physiological Digital Twin & Metabolic Simulation</title>
+    <meta name="description" content="In-silico physiological digital twin platform for Type 1 Diabetes research, continuous glucose forecasting, and counterfactual metabolic simulation." />
+    <!-- Modern Typography: Google Fonts Outfit, Inter, and JetBrains Mono -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/src/style.css" />
+  </head>
+  <body>
+    <!-- Top Mandatory Clinical Disclaimer Banner -->
+    <aside class="clinical-safety-banner" id="safety-banner" role="alert">
+      <div class="banner-content">
+        <span class="warning-icon">&#9888;</span>
+        <strong>RESEARCH &amp; EDUCATION PROTOTYPE ONLY</strong> — Strictly not for medical decision-making or therapy adjustment. GlucoTwin AI does not output insulin doses or clinical recommendations.
+      </div>
+    </aside>
+
+    <div class="app-container">
+      <!-- Main Navigation Header -->
+      <header class="app-header">
+        <div class="brand-section">
+          <div class="brand-logo-icon">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
+            </svg>
+          </div>
+          <div>
+            <h1 class="brand-title">GlucoTwin <span class="accent-gradient">AI</span></h1>
+            <p class="brand-subtitle">Physiological Digital Twin &amp; In-Silico Metabolic Simulator</p>
+          </div>
+        </div>
+
+        <div class="session-controls">
+          <div class="session-badge" id="session-badge">
+            <span class="pulse-dot"></span>
+            <span id="session-status-text">Connecting...</span>
+          </div>
+          <button id="btn-seed-cohort" class="btn btn-secondary btn-sm" title="Populate synthetic T1D cohort">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+            Seed Cohort
+          </button>
+          <button id="btn-refresh-data" class="btn btn-secondary btn-sm" title="Refresh patient telemetry">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+            Refresh
+          </button>
+          <button id="btn-auth-action" class="btn btn-primary btn-sm">New Session</button>
+        </div>
+      </header>
+
+      <!-- Patient Cohort Context Bar -->
+      <section class="patient-bar" aria-label="Patient Selector">
+        <div class="patient-select-group">
+          <label for="select-patient" class="field-label">Selected Synthetic Patient</label>
+          <select id="select-patient" class="form-select">
+            <option value="">Loading synthetic cohort...</option>
+          </select>
+        </div>
+
+        <div class="patient-profile-strip" id="patient-profile-strip">
+          <div class="profile-chip">
+            <span class="chip-label">Type</span>
+            <span class="chip-val" id="prof-type">T1D</span>
+          </div>
+          <div class="profile-chip">
+            <span class="chip-label">Age</span>
+            <span class="chip-val" id="prof-age">-- yrs</span>
+          </div>
+          <div class="profile-chip">
+            <span class="chip-label">Weight</span>
+            <span class="chip-val" id="prof-weight">-- kg</span>
+          </div>
+          <div class="profile-chip">
+            <span class="chip-label">Basal Rate</span>
+            <span class="chip-val" id="prof-basal">-- U/hr</span>
+          </div>
+          <div class="profile-chip">
+            <span class="chip-label">ISF</span>
+            <span class="chip-val" id="prof-isf">-- mg/dL/U</span>
+          </div>
+          <div class="profile-chip">
+            <span class="chip-label">ICR</span>
+            <span class="chip-val" id="prof-icr">-- g/U</span>
+          </div>
+          <div class="profile-chip target-chip">
+            <span class="chip-label">Target Zone</span>
+            <span class="chip-val" id="prof-target">70 - 180 mg/dL</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- 4-Tier Segregation Navigation Tabs -->
+      <nav class="tier-nav" aria-label="Tier Navigation">
+        <button class="tier-tab active" data-tier="1" id="tab-tier-1">
+          <span class="tier-number">Tier 1</span>
+          <span class="tier-name">Observed Telemetry</span>
+          <span class="tier-sub">Continuous CGM &amp; Meal Events</span>
+        </button>
+        <button class="tier-tab" data-tier="2" id="tab-tier-2">
+          <span class="tier-number">Tier 2</span>
+          <span class="tier-name">Derived AGP Profile</span>
+          <span class="tier-sub">Consensus Glycemic Metrics &amp; Percentiles</span>
+        </button>
+        <button class="tier-tab" data-tier="3" id="tab-tier-3">
+          <span class="tier-number">Tier 3</span>
+          <span class="tier-name">Predicted Digital Twin</span>
+          <span class="tier-sub">ARX-Kalman Trajectory &amp; Abstention</span>
+        </button>
+        <button class="tier-tab" data-tier="4" id="tab-tier-4">
+          <span class="tier-number">Tier 4</span>
+          <span class="tier-name">Hypothetical What-If</span>
+          <span class="tier-sub">Bergman ODE Perturbation Simulator</span>
+        </button>
+      </nav>
+
+      <!-- Main Content Area -->
+      <main class="tier-content-viewport">
+        <!-- TIER 1: OBSERVED TELEMETRY -->
+        <section class="tier-panel active" id="panel-tier-1">
+          <div class="panel-header">
+            <div>
+              <h2 class="panel-title">Tier 1: Observed Telemetry Stream</h2>
+              <p class="panel-desc">Real-time sensor streams, carbohydrate ingestion logs, and synthetic insulin boluses.</p>
+            </div>
+            <div class="action-group">
+              <button id="btn-seed-telemetry" class="btn btn-secondary btn-sm">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                Seed 7-Day Stream
+              </button>
+              <button id="btn-open-ingest-modal" class="btn btn-primary btn-sm">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+                Ingest Reading
+              </button>
+            </div>
+          </div>
+
+          <!-- CGM Chart Card -->
+          <div class="glass-card chart-card">
+            <div class="chart-header">
+              <div class="chart-title-wrap">
+                <h3 class="chart-title">Continuous Glucose Monitoring (CGM)</h3>
+                <span class="badge badge-success" id="badge-sensor-status">Sensor: OK</span>
+              </div>
+              <div class="chart-legend">
+                <span class="legend-item"><span class="legend-box tir-box"></span> Target (70-180 mg/dL)</span>
+                <span class="legend-item"><span class="legend-line cgm-line"></span> Interstitial Glucose</span>
+                <span class="legend-item"><span class="legend-marker meal-marker"></span> Meal Carbs (g)</span>
+                <span class="legend-item"><span class="legend-marker bolus-marker"></span> Insulin Bolus (U)</span>
+              </div>
+            </div>
+            <div class="chart-viewport" id="cgm-chart-container">
+              <div class="chart-placeholder">Loading observed telemetry stream...</div>
+            </div>
+          </div>
+
+          <!-- Recent Readings Table -->
+          <div class="glass-card table-card">
+            <div class="table-header">
+              <h3 class="card-subtitle">Recent Sensor Readings</h3>
+              <span class="table-count" id="table-reading-count">0 readings</span>
+            </div>
+            <div class="table-responsive">
+              <table class="data-table" id="telemetry-table">
+                <thead>
+                  <tr>
+                    <th>Timestamp (UTC)</th>
+                    <th>Glucose (mg/dL)</th>
+                    <th>Velocity (mg/dL/min)</th>
+                    <th>Status</th>
+                    <th>Meal Carbs (g)</th>
+                    <th>Bolus (U)</th>
+                    <th>Activity</th>
+                  </tr>
+                </thead>
+                <tbody id="telemetry-table-body">
+                  <tr><td colspan="7" class="empty-state">No telemetry ingested for this patient yet. Click 'Seed 7-Day Stream' above.</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- TIER 2: DERIVED AGP METRICS -->
+        <section class="tier-panel" id="panel-tier-2">
+          <div class="panel-header">
+            <div>
+              <h2 class="panel-title">Tier 2: Derived Ambulatory Glucose Profile (AGP)</h2>
+              <p class="panel-desc">Clinical consensus metrics standardized according to ATTD / ADA 2019 standards.</p>
+            </div>
+            <div class="window-controls">
+              <label for="select-window-days" class="field-label-sm">Window Duration:</label>
+              <select id="select-window-days" class="form-select form-select-sm">
+                <option value="7">Last 7 Days</option>
+                <option value="14" selected>Last 14 Days (Standard)</option>
+                <option value="30">Last 30 Days</option>
+              </select>
+              <button id="btn-recompute-agp" class="btn btn-primary btn-sm">Compute AGP</button>
+            </div>
+          </div>
+
+          <!-- Key Metrics Grid -->
+          <div class="metrics-summary-grid">
+            <div class="metric-card glass-card">
+              <span class="metric-label">Time In Range (TIR)</span>
+              <div class="metric-val-wrap">
+                <span class="metric-number accent-emerald" id="agp-tir">--%</span>
+                <span class="target-flag" id="flag-tir">Target &gt; 70%</span>
+              </div>
+              <div class="stacked-bar-container">
+                <div class="stacked-bar">
+                  <div class="seg-tbr2" id="bar-tbr2" style="width: 0%" title="Severe Hypo (<54)"></div>
+                  <div class="seg-tbr1" id="bar-tbr1" style="width: 0%" title="Hypo (54-70)"></div>
+                  <div class="seg-tir" id="bar-tir" style="width: 0%" title="In Range (70-180)"></div>
+                  <div class="seg-tar1" id="bar-tar1" style="width: 0%" title="Hyper (180-250)"></div>
+                  <div class="seg-tar2" id="bar-tar2" style="width: 0%" title="Severe Hyper (>250)"></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="metric-card glass-card">
+              <span class="metric-label">Mean Glucose</span>
+              <div class="metric-val-wrap">
+                <span class="metric-number" id="agp-mean">--</span>
+                <span class="metric-unit">mg/dL</span>
+              </div>
+              <span class="metric-subtext" id="agp-sd">SD: -- mg/dL</span>
+            </div>
+
+            <div class="metric-card glass-card">
+              <span class="metric-label">Glycemic Variability (%CV)</span>
+              <div class="metric-val-wrap">
+                <span class="metric-number" id="agp-cv">--%</span>
+                <span class="target-flag" id="flag-cv">Target &le; 36%</span>
+              </div>
+              <span class="metric-subtext">Clinical Stability Index</span>
+            </div>
+
+            <div class="metric-card glass-card">
+              <span class="metric-label">Glucose Management (GMI)</span>
+              <div class="metric-val-wrap">
+                <span class="metric-number accent-purple" id="agp-gmi">--%</span>
+                <span class="metric-unit">HbA1c equiv.</span>
+              </div>
+              <span class="metric-subtext">Bergenstal Consensus Formula</span>
+            </div>
+          </div>
+
+          <!-- Modal Day Percentiles Chart -->
+          <div class="glass-card chart-card">
+            <div class="chart-header">
+              <div>
+                <h3 class="chart-title">Modal Day Composite (24-Hour Profile)</h3>
+                <p class="chart-caption">Median line (50th) with 25th-75th interquartile band and 10th-90th percentile envelope.</p>
+              </div>
+              <div class="chart-legend">
+                <span class="legend-item"><span class="legend-box p1090-box"></span> 10th - 90th %</span>
+                <span class="legend-item"><span class="legend-box p2575-box"></span> 25th - 75th %</span>
+                <span class="legend-item"><span class="legend-line p50-line"></span> 50th Median</span>
+              </div>
+            </div>
+            <div class="chart-viewport" id="agp-modal-container">
+              <div class="chart-placeholder">Compute AGP to render 24-hour percentile curve.</div>
+            </div>
+          </div>
+        </section>
+
+        <!-- TIER 3: PREDICTED DIGITAL TWIN -->
+        <section class="tier-panel" id="panel-tier-3">
+          <div class="panel-header">
+            <div>
+              <h2 class="panel-title">Tier 3: Predicted Digital Twin Trajectory</h2>
+              <p class="panel-desc">Short-term autoregressive ARX state projection with recursive Kalman filter uncertainty bounds.</p>
+            </div>
+            <div class="window-controls">
+              <label for="select-horizon" class="field-label-sm">Forecast Horizon:</label>
+              <select id="select-horizon" class="form-select form-select-sm">
+                <option value="15">15 Minutes (H15)</option>
+                <option value="30">30 Minutes (H30)</option>
+                <option value="45">45 Minutes (H45)</option>
+                <option value="60" selected>60 Minutes (H60 - Full)</option>
+              </select>
+              <button id="btn-run-forecast" class="btn btn-primary btn-sm">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                Run Twin Forecast
+              </button>
+            </div>
+          </div>
+
+          <!-- Fail-Closed Abstention Banner (Hidden by default) -->
+          <div class="abstention-banner glass-card" id="forecast-abstention-card" style="display: none;">
+            <div class="abstention-header">
+              <span class="abstention-icon">&#9888;</span>
+              <div>
+                <h3 class="abstention-title">Prediction Abstained — Clinical Guardrail Intervened</h3>
+                <span class="abstention-code-badge" id="abstention-code-text">DATA_TOO_STALE</span>
+              </div>
+            </div>
+            <p class="abstention-reason" id="abstention-reason-text">The system refused to predict due to data freshness or context requirements.</p>
+            <div class="abstention-action-box">
+              <strong>Recommended Action:</strong>
+              <span id="abstention-action-text">Resume telemetry streaming to regain state synchronization.</span>
+            </div>
+          </div>
+
+          <!-- Forecast Chart -->
+          <div class="glass-card chart-card">
+            <div class="chart-header">
+              <div>
+                <h3 class="chart-title">Forward Trajectory &amp; 95% Uncertainty Fan</h3>
+                <p class="chart-caption">Continuous bridge from latest observed CGM to predicted trajectory.</p>
+              </div>
+              <div class="chart-legend">
+                <span class="legend-item"><span class="legend-line baseline-line"></span> Observed History</span>
+                <span class="legend-item"><span class="legend-line forecast-line"></span> Predicted Trajectory</span>
+                <span class="legend-item"><span class="legend-box ci-fan-box"></span> 95% Confidence Interval</span>
+              </div>
+            </div>
+            <div class="chart-viewport" id="forecast-chart-container">
+              <div class="chart-placeholder">Click 'Run Twin Forecast' to compute state trajectory.</div>
+            </div>
+          </div>
+
+          <!-- Risk Probabilities Grid -->
+          <div class="risk-prob-grid">
+            <div class="risk-card glass-card">
+              <span class="risk-label">Hypoglycemia Risk (&lt; 70 mg/dL at Horizon)</span>
+              <div class="risk-display">
+                <span class="risk-percent" id="prob-hypo">0%</span>
+                <div class="risk-gauge-track">
+                  <div class="risk-gauge-fill hypo-fill" id="gauge-hypo" style="width: 0%"></div>
+                </div>
+              </div>
+            </div>
+            <div class="risk-card glass-card">
+              <span class="risk-label">Hyperglycemia Risk (&gt; 180 mg/dL at Horizon)</span>
+              <div class="risk-display">
+                <span class="risk-percent" id="prob-hyper">0%</span>
+                <div class="risk-gauge-track">
+                  <div class="risk-gauge-fill hyper-fill" id="gauge-hyper" style="width: 0%"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- TIER 4: HYPOTHETICAL WHAT-IF -->
+        <section class="tier-panel" id="panel-tier-4">
+          <div class="panel-header">
+            <div>
+              <h2 class="panel-title">Tier 4: Hypothetical What-If Counterfactual Simulator</h2>
+              <p class="panel-desc">Physiological Bergman Minimal Model numerical ODE simulation under user-defined perturbations.</p>
+            </div>
+            <div>
+              <button id="btn-trigger-safety-refusal" class="btn btn-secondary btn-sm" title="Test Clinical Dosing Refusal Guardrail">
+                Test Dosing Refusal Filter
+              </button>
+            </div>
+          </div>
+
+          <div class="simulator-layout">
+            <!-- Controls Sidebar -->
+            <div class="sim-controls glass-card">
+              <h3 class="card-subtitle">Perturbation Parameters</h3>
+
+              <!-- Carb Delta Slider -->
+              <div class="slider-group">
+                <div class="slider-header">
+                  <label for="slider-carb-delta">Meal Carbs Delta (&Delta;C)</label>
+                  <span class="slider-val" id="val-carb-delta">+30 g</span>
+                </div>
+                <input type="range" id="slider-carb-delta" min="-50" max="100" step="5" value="30" class="sim-slider" />
+                <div class="slider-ticks"><span>-50g</span><span>0g (Baseline)</span><span>+100g</span></div>
+              </div>
+
+              <!-- Timing Shift Slider -->
+              <div class="slider-group">
+                <div class="slider-header">
+                  <label for="slider-timing-shift">Meal Timing Shift (&Delta;t)</label>
+                  <span class="slider-val" id="val-timing-shift">0 min</span>
+                </div>
+                <input type="range" id="slider-timing-shift" min="-30" max="60" step="15" value="0" class="sim-slider" />
+                <div class="slider-ticks"><span>-30m earlier</span><span>Exact</span><span>+60m delayed</span></div>
+              </div>
+
+              <!-- Exercise Intensity -->
+              <div class="slider-group">
+                <div class="slider-header">
+                  <label for="select-exercise-intensity">Postprandial Exercise Intensity</label>
+                  <span class="slider-val" id="val-exercise-intensity">Light (1)</span>
+                </div>
+                <select id="select-exercise-intensity" class="form-select form-select-sm">
+                  <option value="0">0 - None (Sedentary)</option>
+                  <option value="1" selected>1 - Light (Casual Walk)</option>
+                  <option value="2">2 - Moderate (Brisk Jogging)</option>
+                  <option value="3">3 - Vigorous (High Intensity)</option>
+                </select>
+              </div>
+
+              <!-- Exercise Duration -->
+              <div class="slider-group">
+                <div class="slider-header">
+                  <label for="slider-exercise-duration">Exercise Duration</label>
+                  <span class="slider-val" id="val-exercise-duration">30 min</span>
+                </div>
+                <input type="range" id="slider-exercise-duration" min="0" max="90" step="15" value="30" class="sim-slider" />
+                <div class="slider-ticks"><span>0 min</span><span>45 min</span><span>90 min</span></div>
+              </div>
+
+              <!-- Simulation Horizon -->
+              <div class="slider-group">
+                <div class="slider-header">
+                  <label for="select-sim-duration">Simulation Horizon</label>
+                  <span class="slider-val" id="val-sim-duration">240 min (4h)</span>
+                </div>
+                <select id="select-sim-duration" class="form-select form-select-sm">
+                  <option value="120">120 Minutes (2h)</option>
+                  <option value="240" selected>240 Minutes (4h)</option>
+                  <option value="360">360 Minutes (6h)</option>
+                </select>
+              </div>
+
+              <button id="btn-run-simulation" class="btn btn-primary btn-block">
+                Simulate Scenario
+              </button>
+            </div>
+
+            <!-- Visualization Main Area -->
+            <div class="sim-results-area">
+              <!-- Comparative Metrics Shift Bar -->
+              <div class="sim-metrics-bar glass-card">
+                <div class="sim-metric-chip">
+                  <span class="chip-label">TIR Baseline</span>
+                  <span class="chip-val" id="sim-base-tir">--%</span>
+                </div>
+                <div class="sim-metric-chip">
+                  <span class="chip-label">TIR Simulated</span>
+                  <span class="chip-val" id="sim-pert-tir">--%</span>
+                </div>
+                <div class="sim-metric-chip delta-chip">
+                  <span class="chip-label">&Delta; TIR</span>
+                  <span class="chip-val" id="sim-delta-tir">--%</span>
+                </div>
+                <div class="sim-metric-chip">
+                  <span class="chip-label">&Delta; Mean Glucose</span>
+                  <span class="chip-val" id="sim-delta-mean">-- mg/dL</span>
+                </div>
+              </div>
+
+              <!-- Dual Curve Chart -->
+              <div class="glass-card chart-card">
+                <div class="chart-header">
+                  <div>
+                    <h3 class="chart-title" id="sim-chart-heading">Baseline vs Counterfactual Metabolic Trajectory</h3>
+                    <p class="chart-caption">ODE numerical integration showing physiological divergence under simulated perturbations.</p>
+                  </div>
+                  <div class="chart-legend">
+                    <span class="legend-item"><span class="legend-line baseline-sim-line"></span> Unperturbed Baseline</span>
+                    <span class="legend-item"><span class="legend-line perturbed-sim-line"></span> Counterfactual Trajectory</span>
+                  </div>
+                </div>
+                <div class="chart-viewport" id="sim-chart-container">
+                  <div class="chart-placeholder">Adjust sliders and click 'Simulate Scenario' to view ODE trajectory.</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <!-- Modals -->
+    <!-- Ingest Telemetry Modal -->
+    <div class="modal-backdrop" id="modal-ingest" style="display: none;">
+      <div class="modal-card glass-card">
+        <div class="modal-header">
+          <h3 class="modal-title">Ingest Observed Sensor Reading</h3>
+          <button class="btn-close" id="btn-close-ingest-modal">&times;</button>
+        </div>
+        <form id="form-ingest-telemetry">
+          <div class="form-group">
+            <label for="input-glucose" class="field-label">Glucose Reading (mg/dL)</label>
+            <input type="number" id="input-glucose" min="40" max="500" step="0.1" value="125.0" class="form-input" required />
+            <small class="form-help">Valid physiological range: 40.0 - 500.0 mg/dL</small>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="input-meal-carbs" class="field-label">Meal Carbs (g)</label>
+              <input type="number" id="input-meal-carbs" min="0" max="300" step="1" value="0" class="form-input" />
+            </div>
+            <div class="form-group">
+              <label for="input-bolus" class="field-label">Insulin Bolus (U)</label>
+              <input type="number" id="input-bolus" min="0" max="50" step="0.1" value="0.0" class="form-input" />
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="input-exercise-mins" class="field-label">Exercise Duration (min)</label>
+              <input type="number" id="input-exercise-mins" min="0" max="180" step="5" value="0" class="form-input" />
+            </div>
+            <div class="form-group">
+              <label for="input-exercise-int" class="field-label">Exercise Intensity</label>
+              <select id="input-exercise-int" class="form-select">
+                <option value="0">0 - None</option>
+                <option value="1">1 - Light</option>
+                <option value="2">2 - Moderate</option>
+                <option value="3">3 - Heavy</option>
+              </select>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" id="btn-cancel-ingest">Cancel</button>
+            <button type="submit" class="btn btn-primary">Transmit Reading</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Notification Toast Container -->
+    <div id="toast-container" class="toast-container" aria-live="polite"></div>
+
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
