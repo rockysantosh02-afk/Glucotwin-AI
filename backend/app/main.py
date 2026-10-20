@@ -14,6 +14,7 @@ from app.api.v1.metrics import router as metrics_router
 from app.api.v1.patients import router as patients_router
 from app.api.v1.protected import router as protected_router
 from app.api.v1.ready import router as ready_router
+from app.api.v1.simulation import router as simulation_router
 from app.api.v1.telemetry import router as telemetry_router
 from app.core.config import settings
 from app.core.database import Base, check_db_connectivity, engine
@@ -117,6 +118,7 @@ def create_app() -> FastAPI:
     app.include_router(telemetry_router, prefix=api_v1_prefix)
     app.include_router(metrics_router, prefix=api_v1_prefix)
     app.include_router(forecast_router, prefix=api_v1_prefix)
+    app.include_router(simulation_router, prefix=api_v1_prefix)
     app.include_router(protected_router, prefix=api_v1_prefix)
 
     return app
