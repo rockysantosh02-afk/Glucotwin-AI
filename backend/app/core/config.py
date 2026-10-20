@@ -95,6 +95,22 @@ class Settings(BaseSettings):
     PHYSIOLOGICAL_MIN_GLUCOSE: float = 40.0
     PHYSIOLOGICAL_MAX_GLUCOSE: float = 500.0
 
+    @field_validator("DATABASE_URL", mode="before")
+    @classmethod
+    def normalize_database_url(cls, value: object) -> str:
+        """
+        Normalizes PostgreSQL connection URIs to use the asyncpg asynchronous driver.
+        Handles Render's standard postgresql:// or legacy postgres:// connection strings.
+        """
+        if isinstance(value, str):
+            val = value.strip()
+            if val.startswith("postgres://"):
+                return val.replace("postgres://", "postgresql+asyncpg://", 1)
+            if val.startswith("postgresql://") and not val.startswith("postgresql+asyncpg://"):
+                return val.replace("postgresql://", "postgresql+asyncpg://", 1)
+            return val
+        return str(value)
+
     @field_validator("ALLOWED_HOSTS", mode="before")
     @classmethod
     def parse_allowed_hosts(cls, value: object) -> List[str]:

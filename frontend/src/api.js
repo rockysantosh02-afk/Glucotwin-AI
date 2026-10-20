@@ -8,7 +8,11 @@
 const getApiBase = () => {
   const envUrl = typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_BASE_URL;
   if (envUrl) {
-    return `${envUrl.replace(/\/$/, '')}/api/v1`;
+    const cleanUrl = String(envUrl).trim().replace(/\/$/, '');
+    if (cleanUrl.endsWith('/api/v1')) {
+      return cleanUrl;
+    }
+    return `${cleanUrl}/api/v1`;
   }
   return '/api/v1';
 };

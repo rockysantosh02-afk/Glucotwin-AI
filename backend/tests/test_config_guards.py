@@ -122,3 +122,17 @@ def test_valid_production_settings_pass():
     assert cfg.ENVIRONMENT == "production"
     assert cfg.is_sqlite is False
     assert cfg.DATABASE_URL.startswith("postgresql+asyncpg://")
+
+
+def test_render_database_url_auto_normalization():
+    """Verifies that postgresql:// or postgres:// from Render is automatically normalized to postgresql+asyncpg://."""
+    cfg = Settings(
+        ENVIRONMENT="production",
+        SECRET_KEY="c849e7b2a9f1406e987c2b0d3a5e8f1c4b7a9d2e0f3c5b8a1d4e7f0b3a6c9d2e",
+        DEBUG=False,
+        USE_SQLITE_FALLBACK=False,
+        DATABASE_URL="postgresql://user:pass@dpg-1234.oregon-postgres.render.com/glucotwin",
+        ALLOWED_ORIGINS=["https://app.glucotwin.ai"],
+        ALLOWED_HOSTS=["api.glucotwin.ai"]
+    )
+    assert cfg.DATABASE_URL == "postgresql+asyncpg://user:pass@dpg-1234.oregon-postgres.render.com/glucotwin"
