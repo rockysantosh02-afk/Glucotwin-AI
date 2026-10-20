@@ -1,37 +1,41 @@
 /**
  * GlucoTwin AI - API Client Module
- * Manages JWT demo session tokens, HTTP Bearer headers, and standardized error handling.
+ * Manages in-memory JWT demo session tokens, HTTP Bearer headers, and standardized error handling.
+ * SECURITY NOTICE: Tokens are held strictly in-memory (never in localStorage or sessionStorage)
+ * to comply with Phase 5 Security and Privacy standards against XSS exfiltration.
  */
 
-const API_BASE = '/api/v1';
+const getApiBase = () => {
+  const envUrl = typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_BASE_URL;
+  if (envUrl) {
+    return `${envUrl.replace(/\/$/, '')}/api/v1`;
+  }
+  return '/api/v1';
+};
 
 class ApiClient {
   constructor() {
-    this.token = localStorage.getItem('glucotwin_token') || null;
-    this.userRole = localStorage.getItem('glucotwin_role') || null;
-    this.sandboxId = localStorage.getItem('glucotwin_sandbox') || null;
+    // Strictly in-memory session variables (zero browser persistent storage)
+    this.token = null;
+    this.userRole = null;
+    this.sandboxId = null;
+    this.apiBase = getApiBase();
   }
 
   setSession(token, role, sandbox) {
     this.token = token;
     this.userRole = role;
     this.sandboxId = sandbox;
-    localStorage.setItem('glucotwin_token', token);
-    localStorage.setItem('glucotwin_role', role);
-    if (sandbox) localStorage.setItem('glucotwin_sandbox', sandbox);
   }
 
   clearSession() {
     this.token = null;
     this.userRole = null;
     this.sandboxId = null;
-    localStorage.removeItem('glucotwin_token');
-    localStorage.removeItem('glucotwin_role');
-    localStorage.removeItem('glucotwin_sandbox');
   }
 
   async request(endpoint, options = {}) {
-    const url = `${API_BASE}${endpoint}`;
+    const url = `${this.apiBase}${endpoint}`;
     const headers = {
       'Content-Type': 'application/json',
       ...options.headers,
@@ -42,20 +46,17 @@ class ApiClient {
     }
 
     try {
-      const response = await fetch(url, {
+      let response = await fetch(url, {
         ...options,
         headers,
       });
 
-      // Handle 401 unauthenticated
-      if (response.status === 401) {
+      // Handle 401 unauthenticated by automatically acquiring a new in-memory demo session
+      if (response.status === 401 && !endpoint.includes('/auth/')) {
         this.clearSession();
-        // Automatically attempt to acquire a demo session
         await this.createDemoSession();
-        // Retry once with new token
         headers['Authorization'] = `Bearer ${this.token}`;
-        const retryResp = await fetch(url, { ...options, headers });
-        return await retryResp.json();
+        response = await fetch(url, { ...options, headers });
       }
 
       const json = await response.json();
@@ -67,7 +68,7 @@ class ApiClient {
   }
 
   async createDemoSession(clinicianName = 'Research Clinician') {
-    const resp = await fetch(`${API_BASE}/auth/demo-session`, {
+    const resp = await fetch(`${this.apiBase}/auth/demo-session`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -76,7 +77,7 @@ class ApiClient {
       })
     });
     const data = await resp.json();
-    if (data.success) {
+    if (data.success && data.data) {
       this.setSession(
         data.data.access_token,
         data.data.role,
@@ -126,11 +127,43 @@ class ApiClient {
     });
   }
 
+  async ingestObservation(patientId, observation) {
+    return this.request('/observations/ingest', {
+      method: 'POST',
+      body: JSON.stringify({
+        patient_id: patientId,
+        observations: [observation]
+      })
+    });
+  }
+
   async seedTelemetry(patientId, days = 7, seed = 42) {
     return this.request(`/patients/${patientId}/seed-telemetry`, {
       method: 'POST',
       body: JSON.stringify({ days, seed })
     });
+  }
+
+  async downloadTelemetryCsv(patientId, limit = 2016) {
+    const url = `${this.apiBase}/patients/${patientId}/telemetry/export?limit=${limit}`;
+    const headers = {};
+    if (this.token) {
+      headers['Authorization'] = `Bearer ${this.token}`;
+    }
+
+    const resp = await fetch(url, { headers });
+    if (!resp.ok) {
+      throw new Error(`Failed to export CSV: HTTP ${resp.status}`);
+    }
+    const blob = await resp.blob();
+    const downloadUrl = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = downloadUrl;
+    a.download = `glucotwin_${patientId}_telemetry.csv`;
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(downloadUrl);
+    a.remove();
   }
 
   // Tier 2: Derived AGP Metrics Endpoints

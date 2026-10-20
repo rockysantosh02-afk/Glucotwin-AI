@@ -300,3 +300,80 @@ async def seed_patient_telemetry(
         session=session,
         db=db
     )
+
+
+def sanitize_csv_cell(val: Any) -> str:
+    """
+    Sanitizes string values to prevent CSV Formula Injection (CWE-1236).
+    If a cell begins with '=', '+', '-', '@', '\t', or '\r', prefix with a single quote.
+    """
+    if val is None:
+        return ""
+    s = str(val)
+    if s and s[0] in ("=", "+", "-", "@", "\t", "\r"):
+        return f"'{s}"
+    return s
+
+
+@router.get("/{patient_identifier}/telemetry/export", status_code=status.HTTP_200_OK)
+async def export_patient_telemetry_csv(
+    patient_identifier: str,
+    request: Request,
+    response: Response,
+    limit: int = Query(default=2016, ge=1, le=10000, description="Max readings to export (default 2016 = 7 days)"),
+    session: AuthenticatedSession = Depends(get_current_session),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Exports historical observed telemetry as a sanitized CSV file.
+    Includes synthetic-data disclosure header, units, timestamps, and CSV formula-injection defense.
+    """
+    add_cache_control_no_store(response)
+    patient = await _resolve_patient(db, patient_identifier)
+    enforce_patient_scope(session=session, patient_id=patient.id, patient_code=patient.patient_code)
+
+    query = select(TelemetryRecord).where(
+        TelemetryRecord.patient_id == patient.id
+    ).order_by(TelemetryRecord.timestamp.asc()).limit(limit)
+
+    result = await db.execute(query)
+    records = result.scalars().all()
+
+    # Build CSV content
+    lines = [
+        "# ==============================================================================",
+        "# GLUCOTWIN AI - SYNTHETIC PATIENT TELEMETRY EXPORT",
+        "# RESEARCH & EDUCATION PROTOTYPE ONLY - NOT A MEDICAL DEVICE - ZERO PHI",
+        f"# Patient Code: {sanitize_csv_cell(patient.patient_code)}",
+        f"# Export Timestamp: {datetime.now(timezone.utc).isoformat()}",
+        "# Units: Glucose in mg/dL, Meal Carbs in grams, Synthetic Insulin in Units",
+        "# ==============================================================================",
+        "timestamp_utc,glucose_mg_dl,rate_of_change,sensor_status,meal_carbs_grams,bolus_synthetic_units,activity_minutes,activity_intensity"
+    ]
+
+    for r in records:
+        ts_str = r.timestamp.isoformat() if r.timestamp else ""
+        row = [
+            sanitize_csv_cell(ts_str),
+            sanitize_csv_cell(f"{r.glucose_mg_dl:.2f}"),
+            sanitize_csv_cell(f"{r.rate_of_change:.2f}" if r.rate_of_change is not None else "0.00"),
+            sanitize_csv_cell(r.sensor_status),
+            sanitize_csv_cell(f"{r.meal_carbs_grams:.1f}" if r.meal_carbs_grams is not None else "0.0"),
+            sanitize_csv_cell(f"{r.bolus_synthetic_units:.2f}" if r.bolus_synthetic_units is not None else "0.00"),
+            sanitize_csv_cell(f"{r.activity_minutes:.1f}" if r.activity_minutes is not None else "0.0"),
+            sanitize_csv_cell(str(r.activity_intensity) if r.activity_intensity is not None else "0")
+        ]
+        lines.append(",".join(row))
+
+    csv_data = "\n".join(lines)
+    filename = f"glucotwin_{patient.patient_code}_telemetry.csv"
+
+    return Response(
+        content=csv_data,
+        media_type="text/csv",
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"',
+            "Cache-Control": "no-store, no-cache, must-revalidate, private"
+        }
+    )
+

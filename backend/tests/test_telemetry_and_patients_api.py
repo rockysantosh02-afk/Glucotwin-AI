@@ -316,3 +316,51 @@ async def test_audit_logging_on_patient_and_telemetry_actions(client: AsyncClien
     assert "COHORT_SEEDED" in actions
     assert "TELEMETRY_INGESTED" in actions
 
+
+@pytest.mark.asyncio
+async def test_telemetry_csv_export_and_formula_injection_defense(client: AsyncClient, demo_clinician_token: str):
+    """
+    Verifies that the CSV export endpoint exports observed telemetry with
+    anti-caching headers, synthetic disclosures, and formula injection sanitization.
+    """
+    from app.api.v1.telemetry import sanitize_csv_cell
+
+    # 1. Verify formula injection defense helper
+    assert sanitize_csv_cell("=SUM(A1:A10)") == "'=SUM(A1:A10)"
+    assert sanitize_csv_cell("+cmd|' /C calc'!A0") == "'+cmd|' /C calc'!A0"
+    assert sanitize_csv_cell("-123") == "'-123"
+    assert sanitize_csv_cell("@alert(1)") == "'@alert(1)"
+    assert sanitize_csv_cell("\tmalicious") == "'\tmalicious"
+    assert sanitize_csv_cell("normal_text") == "normal_text"
+    assert sanitize_csv_cell(None) == ""
+
+    # 2. Test unauthenticated request is denied
+    unauth_resp = await client.get("/api/v1/patients/SYN-T1D-001/telemetry/export")
+    assert unauth_resp.status_code == 401
+
+    # 3. Authenticated export
+    headers = {"Authorization": f"Bearer {demo_clinician_token}"}
+    # Seed cohort first
+    await client.post("/api/v1/patients/seed-cohort", json={"count": 2, "seed": 42}, headers=headers)
+
+    # Ingest a sample reading
+    t = datetime(2026, 10, 20, 12, 0, 0, tzinfo=timezone.utc).isoformat()
+    await client.post(
+        "/api/v1/patients/SYN-T1D-001/telemetry",
+        json={"readings": [{"timestamp": t, "glucose_mg_dl": 138.5, "meal_carbs_grams": 45.0}]},
+        headers=headers
+    )
+
+    export_resp = await client.get("/api/v1/patients/SYN-T1D-001/telemetry/export", headers=headers)
+    assert export_resp.status_code == 200
+    assert "text/csv" in export_resp.headers["content-type"]
+    assert "attachment" in export_resp.headers["content-disposition"]
+    assert "no-store" in export_resp.headers["cache-control"]
+
+    csv_body = export_resp.text
+    assert "RESEARCH & EDUCATION PROTOTYPE ONLY" in csv_body
+    assert "SYN-T1D-001" in csv_body
+    assert "138.50" in csv_body
+    assert "45.0" in csv_body
+
+
