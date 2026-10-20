@@ -36,7 +36,7 @@ Stores user accounts for researchers, clinician-observers, and auditors.
 | `username` | `VARCHAR(50)` | No | — | **UNIQUE**, Indexed | Unique login handle. |
 | `email` | `VARCHAR(255)` | No | — | **UNIQUE**, Indexed | User email address. |
 | `hashed_password` | `VARCHAR(255)` | No | — | — | Bcrypt hash of user password. |
-| `role` | `VARCHAR(30)` | No | `'researcher'` | CHECK (`role IN ('researcher', 'clinician_observer', 'auditor')`) | Role-based authorization tier. |
+| `role` | `VARCHAR(30)` | No | `'researcher'` | CHECK (`role IN ('demo_clinician', 'clinician', 'admin', 'researcher', 'clinician_observer', 'auditor')`) | Role-based authorization tier. |
 | `is_active` | `BOOLEAN` | No | `TRUE` | — | Account status flag. |
 | `created_at` | `TIMESTAMPTZ` / `DATETIME` | No | `CURRENT_TIMESTAMP` | — | Account creation timestamp (UTC). |
 | `updated_at` | `TIMESTAMPTZ` / `DATETIME` | No | `CURRENT_TIMESTAMP` | — | Last update timestamp (UTC). |

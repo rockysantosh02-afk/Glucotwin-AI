@@ -87,13 +87,15 @@ The backend application is structured within `backend/app/` to enforce clean sep
   - `synthetic_data.py`: Patient cohort parameter generator.
   - `audit_service.py`: Asynchronous compliance and guardrail trigger logger.
 - `app.api.v1`: FastAPI versioned router endpoints:
-  - `auth.py`: Token issuance, user registration, role verification.
-  - `patients.py`: Patient cohort demographic and baseline metadata.
-  - `telemetry.py`: CGM and contextual event ingestion and query.
-  - `twin.py`: Real-time digital twin state estimation and forecast execution.
-  - `simulations.py`: What-if perturbation execution.
-  - `metrics.py`: Aggregate glycemic analysis.
-  - `health.py`: Liveness and readiness probes.
+  - `auth.py`: Token issuance (`/auth/demo-session`), revocation (`/auth/logout`), current profile (`/auth/me`).
+  - `patients.py`: Patient demographic queries (`/patients/`), detail (`/patients/{id}`), scenario selection (`/patients/scenario/{name}`).
+  - `observations.py`: Multi-modal sensor observation ingestion (`/observations/ingest`) with unit conversion and concurrent idempotency.
+  - `telemetry.py`: Historical continuous telemetry stream retrieval (`/telemetry/{patient_id}`) and legacy batch ingestion.
+  - `metrics.py`: International consensus glycemic metrics (`/metrics/summary/{patient_id}`) and hourly AGP quantiles (`/metrics/agp/{patient_id}`).
+  - `forecast.py`: Digital-twin ARX-Kalman multi-horizon forecasting with analytical 95% confidence intervals (`/forecast/run`).
+  - `simulation.py`: Bergman ODE counterfactual what-if perturbation simulator (`/simulation/what-if`).
+  - `protected.py`: RBAC validation test routes (`/protected/clinician-only`, `/protected/admin-only`).
+  - `health.py` & `ready.py`: Liveness (`/health`) and comprehensive readiness (`/ready`) verifying database connectivity, migration status, and model artifact SHA-256 integrity.
 
 ---
 

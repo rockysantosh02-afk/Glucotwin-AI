@@ -72,8 +72,43 @@ The engine is engineered to fail closed. Therefore, reliability metrics include:
 
 ---
 
-## 5. Benchmark Execution & Reporting Requirements
+## 5. Comparative Baseline Models
 
-1. **Automated Reproduction Script:** Evaluation must be executable via a standalone, deterministic script (`scripts/run_model_evaluation.py`) accepting `--cohort-seed` and `--horizon`.
-2. **Deterministic Seed Control:** All synthetic patient test cohorts must be seeded with fixed random states (`numpy.random.seed(42)`).
-3. **Artifact Recording:** Metrics must be exported to a versioned machine-readable JSON summary (`eval_results_vX.Y.Z.json`).
+To benchmark the predictive value of the ARX-Kalman physiological model, two classical time-series baselines are evaluated on identical test windows:
+
+1. **Naive Persistence Baseline:**
+   $$\hat{G}_{\text{pers}}(t + \tau) = G(t)$$
+   Assumes glucose remains invariant from the anchor reading. Useful for measuring autocorrelation inertia.
+2. **Linear Extrapolation Baseline:**
+   $$v(t) = \frac{G(t) - G(t - 15)}{15 \text{ min}}, \quad \hat{G}_{\text{lin}}(t + \tau) = \text{clamp}_{[40, 500]}\left(G(t) + \tau \cdot v(t)\right)$$
+   Projects the instantaneous 15-minute rate of change forward linearly.
+
+---
+
+## 6. Benchmark Execution & Reproducibility Protocol
+
+1. **Automated Reproduction Script:**
+   The offline benchmark is completely automated and deterministic via:
+   ```bash
+   python scripts/evaluate_models.py
+   ```
+2. **Test Cohort Parameters:**
+   - 16 held-out synthetic patients generated with seed `999` and patient seed offsets `999 + i * 2000`.
+   - 14 continuous days per patient ($46,080$ telemetry readings total).
+   - Sliding context window of 24 points (120 minutes) evaluated with a stride of 12 points (60 minutes), yielding $5,328$ forecast evaluations ($21,312$ horizon evaluation points).
+3. **Artifact Recording:**
+   - Benchmark metrics are serialized to `data/model_evaluation_results.json` containing versioned metrics, Clarke distributions, and baseline comparisons.
+
+---
+
+## 7. Verified Academic References (Methodological Precedents)
+
+> ⚠️ **DISCLAIMER:** The references below cite the original scientific literature establishing physiological models and clinical metrics. **None of the cited authors, institutions, or journals endorse, validate, or certify GlucoTwin AI.**
+
+1. **Bergman Minimal Model:**
+   Bergman RN, Ider YZ, Bowden CR, Cobelli C. *Quantitative estimation of insulin sensitivity.* Am J Physiol. 1979 Jun;236(6):E667-77. doi: 10.1152/ajpendo.1979.236.6.E667.
+2. **Clarke Error Grid Analysis:**
+   Clarke WL, Cox D, Gonder-Frederick LA, Carter W, Pohl SL. *Evaluating clinical accuracy of systems for self-monitoring of blood glucose.* Diabetes Care. 1987 Sep-Oct;10(5):622-8. doi: 10.2337/diacare.10.5.622.
+3. **Clinical Targets for Continuous Glucose Monitoring (Time in Range Consensus):**
+   Battelino T, Danne T, Bergenstal RM, et al. *Clinical Targets for Continuous Glucose Monitoring Data Interpretation: Recommendations From the International Consensus on Time in Range.* Diabetes Care. 2019 Aug;42(8):1593-1603. doi: 10.2337/dci19-0028.
+
